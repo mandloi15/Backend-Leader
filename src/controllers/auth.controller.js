@@ -1,5 +1,6 @@
 const userModel = require("../models/user.model")
 const jwt = require("jsonwebtoken")
+const emailService = require("../services/email.service")
 
 /** 
 * - user register controller
@@ -8,7 +9,13 @@ const jwt = require("jsonwebtoken")
 
 async function userRegisterController(req,res) {
 
-    const {email, name, password} = req.body
+    const {email, name, password} = req.body || {}
+
+    if (!email || !name || !password) {
+        return res.status(400).json({
+            message: "name, email and password are required",
+        })
+    }
 
     const isExists = await userModel .findOne({
         email: email
@@ -40,6 +47,7 @@ async function userRegisterController(req,res) {
             token
         })
 
+        await emailService.sendRegistrationEmail(user.email,user.name)
 
 }
 
@@ -49,7 +57,13 @@ async function userRegisterController(req,res) {
  */
 
 async function userLoginController(req,res) {
-        const {email, password} = req.body
+        const {email, password} = req.body || {}
+
+        if (!email || !password) {
+            return res.status(400).json({
+                message: "email and password are required",
+            })
+        }
 
         const user = await userModel.findOne({email}).select("+password")
 
