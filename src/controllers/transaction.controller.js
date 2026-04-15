@@ -92,6 +92,61 @@ async function createTransaction(req,res) {
             message: "Both from and to accounts must be active to process the transaction"
         })
     }
+
+    /**
+     * 4. Derive sender balance from ledger
+     */
+
+    const balance = await fromUserAccount.getBalance()
+
+    if (balance < amount) {
+        return res.status(400).json({
+            message: `Insufficient funds. Current balance is ${balance}. Requested amount is ${amount}`
+        })
+    }
+
+    /**
+     * 5. Create transaction (PENDING)
+     */
+    const session = await mongoose.startSession()
+    session.startTransaction()
+
+    const transaction = await transactionModel.create({
+        fromAccount,
+        toAccount,
+        amount,
+        idempotencyKey,
+        status: "PENDING"
+    }, { session })
+
+    const debitLedgerEntry = await ledgerModel.create({
+        account: fromAccount,
+        amount: amount,
+        transaction: transaction._id,
+        type: "DEBIT"
+    }, { session })
+    const creditLedgerEntry = await ledgerModel.create({
+        account: toAccount,
+        amount: amount,
+        transaction: transaction._id,
+        type: "CREDIT"
+    }, { session })
+
+    transaction.status = "COMPLETED"
+    await transaction.save({ session })
+
+    await session.commitTransaction()
+    session.endSession()
+
+    /**
+     * 10. Send notification emails.
+     */
+    await emailService.sendTransactionEmail(req.user.email, req.user.name, amount, toUserAccount._id)
+
+    return res.status(201).json({
+        message: "Transaction created successfully",
+        transactionId: transaction
+    })
 }
 
 async function createInitialFundsTransaction(req,res) {
