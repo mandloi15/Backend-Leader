@@ -5,13 +5,13 @@ const transactionSchema = new mongoose.Schema({
 
     fromAccount:{
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Account",
+        ref: "account",
         required: [ true, "Transaction must be associated with a from account"],
         index: true
     },
     toAccount:{
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Account",
+        ref: "account",
         required: [ true, "Transaction must be associated with a to account"],
         index: true
     },
